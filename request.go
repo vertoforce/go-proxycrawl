@@ -2,10 +2,10 @@ package proxycrawl
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
-	"strings"
 )
 
 // Format Indicates the response format, either json or html. Defaults to html.
@@ -18,9 +18,12 @@ type Device string
 // Country - A two letter code representing a country
 type Country string
 
+// RequestType to Send, can be javascript or normal
+type RequestType int
+
 // Constants
 const (
-	baseURL = "https://api.proxycrawl.com/"
+	baseURL = "https://api.proxycrawl.com"
 
 	HTMLFormat Format = "html"
 	JSONFormat Format = "json"
@@ -53,6 +56,9 @@ const (
 	CountryTurkey        = "TR"
 	CountryUkraine       = "UA"
 	CountryUnitedStates  = "US"
+
+	NormalRequest RequestType = iota
+	JavascriptRequest
 )
 
 // RequestParameters used to make a request
@@ -74,7 +80,7 @@ type RequestParameters struct {
 	CSSClickSelector string `label:"css_click_selector"`
 	// Optionally, if you don't want to specify a user_agent but you want to have the requests from a specific device, you can use this parameter.
 	// There are two options available: desktop and mobile.
-	device Device `label:"device"`
+	Device Device `label:"device"`
 	// Optionally, if you need to get the cookies that the original website sets on the response, you can use the &get_cookies=true parameter.
 	// The cookies will come back in the header (or in the json response if you use &format=json) as original_set_cookie.
 	GetCookies bool `label:"get_cookies"`
@@ -111,14 +117,15 @@ type RequestParameters struct {
 }
 
 // ToURL Converts the request to be ready to be placed in a url
+// Will only return values that are not "", "false" or "0"
 func (r *RequestParameters) ToURL() *url.Values {
 	typeOf := reflect.TypeOf(*r)
 	valueOf := reflect.ValueOf(*r)
 
 	values := url.Values{}
 	for i := 0; i < typeOf.NumField(); i++ {
-		value := valueOf.Field(i).String()
-		if value == "" {
+		value := fmt.Sprintf("%v", valueOf.Field(i).Interface())
+		if value == "" || value == "false" || value == "0" {
 			continue
 		}
 		label := typeOf.Field(i).Name
@@ -131,9 +138,17 @@ func (r *RequestParameters) ToURL() *url.Values {
 	return &values
 }
 
-// MakeJavascriptRequest Makes a javascript request
-func (c *Client) MakeJavascriptRequest(ctx context.Context, params *RequestParameters) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, "POST", baseURL, strings.NewReader(params.ToURL().Encode()))
+// MakeRequest Makes a normal or javascript request
+func (c *Client) MakeRequest(ctx context.Context, params *RequestParameters, requestType RequestType) (*http.Response, error) {
+	urlValues := params.ToURL()
+	switch requestType {
+	default:
+		urlValues.Add("token", c.NormalRequestToken)
+	case JavascriptRequest:
+		urlValues.Add("token", c.JavascriptRequestToken)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/?%s", baseURL, urlValues.Encode()), nil)
 	if err != nil {
 		return nil, err
 	}
