@@ -148,6 +148,9 @@ func (c *Client) MakeRequest(ctx context.Context, params *RequestParameters, req
 		urlValues.Add("token", c.JavascriptRequestToken)
 	}
 
+	// Wait for a token
+	c.rateLimit.Wait(1)
+
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/?%s", baseURL, urlValues.Encode()), nil)
 	if err != nil {
 		return nil, err
