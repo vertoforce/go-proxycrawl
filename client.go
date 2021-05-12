@@ -1,6 +1,7 @@
 package proxycrawl
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/juju/ratelimit"
@@ -8,6 +9,7 @@ import (
 
 // Client for proxycrawl
 type Client struct {
+	HttpClient             *http.Client
 	NormalRequestToken     string
 	JavascriptRequestToken string
 
@@ -20,6 +22,7 @@ func New(NormalRequestToken, JavascriptRequestToken string) *Client {
 	// We set it to conservatively 1 request every 60 milliseconds
 	rateLimit := ratelimit.NewBucketWithQuantum(time.Millisecond*60, 1, 1)
 	return &Client{
+		HttpClient:             http.DefaultClient,
 		NormalRequestToken:     NormalRequestToken,
 		JavascriptRequestToken: JavascriptRequestToken,
 		rateLimit:              rateLimit,

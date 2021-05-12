@@ -156,7 +156,7 @@ func (c *Client) MakeRequest(ctx context.Context, params *RequestParameters, req
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.HttpClient.Do(req)
 
 	return resp, err
 }
